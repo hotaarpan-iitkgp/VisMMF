@@ -1,0 +1,8 @@
+{
+  "name": "PWA: Three-Phase MMF Visualizer",
+  "description": "An interactive, educational 2D visualizer to analyze and animate the Magnetomotive Force (MMF) waveform of a three-phase induction motor stator with customizable pole counts, slots, winding layouts, short-pitch options, and harmonic spectrums.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
