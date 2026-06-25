@@ -522,12 +522,12 @@ export default function App() {
                 <Zap className="w-5 h-5" />
               </span>
               <h1 className="text-lg font-mono font-bold tracking-tight text-white uppercase">
-                Three-Phase Motor MMF Visualizer
+                VISMMF: Three-Phase Motor MMF Visualizer
               </h1>
             </div>
             <p className="text-xs text-gray-400 mt-1 max-w-xl leading-relaxed">
               Analyze the spatial distribution of the Magnetomotive Force (MMF) waveform
-              in induction motors under multiple stator slots, winding layout, and electrical phase imbalances.
+              in induction motors under multiple stator slots, winding layout, and electrical phase imbalances. Developed by Prof. Arpan Hota (EE-IITKGP).
             </p>
           </div>
 
