@@ -1,12 +1,8 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
 
-# Run and deploy your AI Studio app
+# Run and deploy your app
 
 This contains everything you need to run your app locally.
 
-View your app in AI Studio: https://ai.studio/apps/9c0b2a76-fe42-48de-ac64-aa30e0ee5d57
 
 ## Run Locally
 
@@ -18,3 +14,17 @@ View your app in AI Studio: https://ai.studio/apps/9c0b2a76-fe42-48de-ac64-aa30e
 2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
 3. Run the app:
    `npm run dev`
+
+   # Initialize repository
+git init
+
+# Add remote origin
+git remote add origin https://github.com/hotaarpan-iitkgp/VisMMF.git
+
+# Stage and commit your files
+git add .
+git commit -m "feat: implement installable PWA and offline service worker"
+
+# Push to your main branch
+git branch -M main
+git push -u origin main
