@@ -21,6 +21,9 @@ interface MotorCrossSectionProps {
   settings: SimSettings;
   currents: SlotCurrents;
   mmf: MmfResult;
+  isFullscreen?: boolean;
+  onToggleFullscreen?: (fullscreen: boolean) => void;
+  embedFullscreen?: boolean;
 }
 
 export const MotorCrossSection: React.FC<MotorCrossSectionProps> = ({
@@ -28,6 +31,9 @@ export const MotorCrossSection: React.FC<MotorCrossSectionProps> = ({
   settings,
   currents,
   mmf,
+  isFullscreen: propsIsFullscreen,
+  onToggleFullscreen,
+  embedFullscreen = false,
 }) => {
   const S = layout.slots;
   const P = layout.poles;
@@ -37,6 +43,7 @@ export const MotorCrossSection: React.FC<MotorCrossSectionProps> = ({
   const [showRotor, setShowRotor] = useState(true);
   const [showWinding, setShowWinding] = useState(true);
   const [showMmf, setShowMmf] = useState(true);
+  const [showFluxLines, setShowFluxLines] = useState(true);
   const [is3D, setIs3D] = useState(false);
 
   const [showPhaseA, setShowPhaseA] = useState(true);
@@ -51,7 +58,16 @@ export const MotorCrossSection: React.FC<MotorCrossSectionProps> = ({
   };
 
   // Fullscreen, zoom, and pan parameters
-  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [internalIsFullscreen, setInternalIsFullscreen] = useState(false);
+  const isFullscreen = propsIsFullscreen !== undefined ? propsIsFullscreen : internalIsFullscreen;
+  const setIsFullscreen = (val: boolean | ((prev: boolean) => boolean)) => {
+    const nextVal = typeof val === 'function' ? val(isFullscreen) : val;
+    if (onToggleFullscreen) {
+      onToggleFullscreen(nextVal);
+    } else {
+      setInternalIsFullscreen(nextVal);
+    }
+  };
   const [zoomScale, setZoomScale] = useState(1);
   const [panX, setPanX] = useState(0);
   const [panY, setPanY] = useState(0);
@@ -431,6 +447,57 @@ export const MotorCrossSection: React.FC<MotorCrossSectionProps> = ({
     return vectors;
   }, [p, mmf.fundamentalPhase, mmf.fundamentalAmp, mmfScaleFactor]);
 
+  // Compute flux line paths flowing from North to South poles
+  const fluxPaths = useMemo(() => {
+    const paths = [];
+    const amp = mmf.fundamentalAmp;
+    if (amp < 0.05) return [];
+
+    for (let m = 0; m < p; m++) {
+      const thetaN = mmf.fundamentalPhase + (2 * m * Math.PI) / p;
+      const thetaS = mmf.fundamentalPhase + ((2 * m + 1) * Math.PI) / p;
+      const thetaN2 = mmf.fundamentalPhase + ((2 * m + 2) * Math.PI) / p;
+
+      // Draw quadratic Bezier curves starting from a North pole and ending at a South pole
+      const drawFluxCurve = (tN: number, tS: number, rStart: number, rControl: number) => {
+        const xStart = cx + rStart * Math.cos(tN);
+        const yStart = cy + rStart * Math.sin(tN);
+        const xEnd = cx + rStart * Math.cos(tS);
+        const yEnd = cy + rStart * Math.sin(tS);
+
+        // Find the correct shortest-path mid-angle
+        let diff = tS - tN;
+        while (diff < -Math.PI) diff += 2 * Math.PI;
+        while (diff > Math.PI) diff -= 2 * Math.PI;
+        const tMid = tN + diff / 2;
+
+        const xControl = cx + rControl * Math.cos(tMid);
+        const yControl = cy + rControl * Math.sin(tMid);
+
+        return `M ${xStart} ${yStart} Q ${xControl} ${yControl} ${xEnd} ${yEnd}`;
+      };
+
+      // Rotor core interior flux lines (inward bowing, rControl < rStart)
+      paths.push({ path: drawFluxCurve(thetaN, thetaS, 70, 20), type: 'rotor' });
+      paths.push({ path: drawFluxCurve(thetaN, thetaS, 100, 52), type: 'rotor' });
+      paths.push({ path: drawFluxCurve(thetaN, thetaS, 126, 88), type: 'rotor' });
+
+      // Stator yoke backiron return flux lines (outward bowing, rControl > rStart)
+      paths.push({ path: drawFluxCurve(thetaN, thetaS, 190, 204), type: 'stator' });
+      paths.push({ path: drawFluxCurve(thetaN, thetaS, 196, 212), type: 'stator' });
+
+      // Opposite pole direction (Region 2: from thetaN2 to thetaS)
+      paths.push({ path: drawFluxCurve(thetaN2, thetaS, 70, 20), type: 'rotor' });
+      paths.push({ path: drawFluxCurve(thetaN2, thetaS, 100, 52), type: 'rotor' });
+      paths.push({ path: drawFluxCurve(thetaN2, thetaS, 126, 88), type: 'rotor' });
+
+      paths.push({ path: drawFluxCurve(thetaN2, thetaS, 190, 204), type: 'stator' });
+      paths.push({ path: drawFluxCurve(thetaN2, thetaS, 196, 212), type: 'stator' });
+    }
+
+    return paths;
+  }, [p, mmf.fundamentalPhase, mmf.fundamentalAmp]);
+
   // Compute Animated Rotor Angle
   // Angle: is synchronised with time. Mechanical speed is omega_e / p
   // With slip, actual speed is mechanical speed * (1 - s)
@@ -521,13 +588,15 @@ export const MotorCrossSection: React.FC<MotorCrossSectionProps> = ({
   return (
     <div 
       className={
-        isFullscreen 
-          ? "fixed inset-0 z-[9999] bg-gray-950 p-6 flex flex-col lg:flex-row items-stretch justify-center gap-8 overflow-auto lg:overflow-hidden select-none text-gray-100"
-          : "flex flex-col items-center justify-between bg-gray-950 p-4 rounded-2xl border border-gray-800 shadow-2xl relative overflow-hidden h-full text-gray-100"
+        embedFullscreen
+          ? "w-full h-full flex flex-col lg:flex-row items-stretch justify-center gap-6 select-none text-gray-100 relative min-h-0"
+          : isFullscreen 
+            ? "fixed inset-0 z-[9999] bg-gray-950 p-6 flex flex-col lg:flex-row items-stretch justify-center gap-8 overflow-auto lg:overflow-hidden select-none text-gray-100"
+            : "flex flex-col items-center justify-between bg-gray-950 p-4 rounded-2xl border border-gray-800 shadow-2xl relative overflow-hidden h-full text-gray-100"
       }
     >
       {/* Decorative cybernetic overlay lines */}
-      {isFullscreen ? (
+      {(isFullscreen || embedFullscreen) ? (
         <>
           <div className="absolute top-0 left-0 w-16 h-16 border-t-2 border-l-2 border-amber-500/25 pointer-events-none" />
           <div className="absolute top-0 right-0 w-16 h-16 border-t-2 border-r-2 border-amber-500/25 pointer-events-none" />
@@ -547,7 +616,7 @@ export const MotorCrossSection: React.FC<MotorCrossSectionProps> = ({
       <div className="absolute inset-0 bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:16px_16px] opacity-10 pointer-events-none" />
 
       {/* Compact/Full Controls based on fullscreen mode */}
-      {!isFullscreen ? (
+      {(!isFullscreen && !embedFullscreen) ? (
         <div className="w-full flex flex-col items-center z-10 font-mono mb-2">
           {/* Header row */}
           <div className="w-full flex justify-between items-center mb-1.5 border-b border-gray-900 pb-1 z-10">
@@ -632,11 +701,23 @@ export const MotorCrossSection: React.FC<MotorCrossSectionProps> = ({
               className={`flex items-center gap-1 px-2 py-0.5 rounded-full border text-[8.5px] font-bold transition-all cursor-pointer select-none ${
                 showMmf 
                   ? 'bg-orange-500/10 border-orange-500/30 text-orange-450' 
-                  : 'bg-gray-900/30 border-gray-900 text-gray-550 hover:text-gray-400'
+                  : 'bg-gray-900/30 border-gray-900 text-gray-555 hover:text-gray-400'
               }`}
             >
               <div className={`w-1 h-1 rounded-full ${showMmf ? 'bg-orange-500 animate-pulse' : 'bg-gray-700'}`} />
               MMF
+            </button>
+
+            <button
+              onClick={() => setShowFluxLines(!showFluxLines)}
+              className={`flex items-center gap-1 px-2 py-0.5 rounded-full border text-[8.5px] font-bold transition-all cursor-pointer select-none ${
+                showFluxLines 
+                  ? 'bg-amber-500/10 border-amber-500/30 text-amber-400 font-semibold' 
+                  : 'bg-gray-900/30 border-gray-900 text-gray-555 hover:text-gray-400'
+              }`}
+            >
+              <div className={`w-1 h-1 rounded-full ${showFluxLines ? 'bg-amber-500 animate-pulse' : 'bg-gray-700'}`} />
+              Flux Lines
             </button>
           </div>
 
@@ -806,6 +887,18 @@ export const MotorCrossSection: React.FC<MotorCrossSectionProps> = ({
               <div className={`w-1.5 h-1.5 rounded-full ${showMmf ? 'bg-orange-500 animate-pulse' : 'bg-gray-700'}`} />
               MMF Stair
             </button>
+
+            <button
+              onClick={() => setShowFluxLines(!showFluxLines)}
+              className={`flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg border text-[10px] font-mono tracking-wide transition-all cursor-pointer select-none ${
+                showFluxLines 
+                  ? 'bg-amber-500/10 border-amber-500/30 text-amber-455 font-semibold shadow-[0_0_8px_rgba(245,158,11,0.15)]' 
+                  : 'bg-gray-900/30 border-gray-905 text-gray-500 hover:text-gray-400'
+              }`}
+            >
+              <div className={`w-1.5 h-1.5 rounded-full ${showFluxLines ? 'bg-amber-500 animate-pulse' : 'bg-gray-700'}`} />
+              Flux Lines
+            </button>
           </div>
 
           {/* Phase Wise Windings Visibility toggles */}
@@ -903,29 +996,31 @@ export const MotorCrossSection: React.FC<MotorCrossSectionProps> = ({
           </div>
 
           {/* Exit Fullscreen button placed neatly at the bottom only in Fullscreen controls column */}
-          <button
-            onClick={() => {
-              setIsFullscreen(false);
-              handleResetZoomAndPan();
-            }}
-            className="mt-4 py-2.5 w-full bg-red-400/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 rounded-xl cursor-pointer transition-colors text-center flex items-center justify-center gap-1.5 text-xs font-bold font-mono shadow-md"
-          >
-            <Minimize2 className="w-4 h-4" /> Exit Fullscreen
-          </button>
+          {!embedFullscreen && (
+            <button
+              onClick={() => {
+                setIsFullscreen(false);
+                handleResetZoomAndPan();
+              }}
+              className="mt-4 py-2.5 w-full bg-red-400/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 rounded-xl cursor-pointer transition-colors text-center flex items-center justify-center gap-1.5 text-xs font-bold font-mono shadow-md"
+            >
+              <Minimize2 className="w-4 h-4" /> Exit Fullscreen
+            </button>
+          )}
         </div>
       )}
 
       {/* Right visualization stage column */}
       <div className={
-        isFullscreen 
+        (isFullscreen || embedFullscreen)
           ? "flex-1 flex flex-col justify-center items-center relative h-full w-full max-w-none z-10" 
           : "w-full flex-1 flex flex-col items-center justify-center relative mt-1"
       }>
         {/* The 3D Canvas Stage viewport */}
         <div 
           className={`relative w-full aspect-square flex items-center justify-center ${
-            isFullscreen 
-              ? 'max-w-[min(90vw,85vh)] shadow-[0_0_60px_rgba(0,0,0,0.85)] border-gray-800' 
+            (isFullscreen || embedFullscreen)
+              ? 'max-w-[min(90vw,70vh)] shadow-[0_0_60px_rgba(0,0,0,0.85)] border-gray-800' 
               : 'max-w-[340px] shadow-[0_0_20px_rgba(0,0,0,0.5)] border-gray-900'
           } ${
             is3D 
@@ -1648,6 +1743,35 @@ export const MotorCrossSection: React.FC<MotorCrossSectionProps> = ({
             )}
           </svg>
 
+          {/* LAYER: FLUX LINES (translateZ(12px)) */}
+          <svg
+            viewBox="0 0 500 500"
+            className="w-full h-full select-none absolute inset-0 transition-all duration-1000 ease-[cubic-bezier(0.4,0,0.2,1)]"
+            style={{
+              transform: `translate3d(0, 0, ${is3D ? '12px' : '0px'})`,
+              opacity: showFluxLines ? 0.8 : 0,
+              pointerEvents: 'none',
+              transformStyle: 'preserve-3d',
+            }}
+          >
+            {fluxPaths.map((pObj, idx) => (
+              <path
+                key={`flux-path-${idx}`}
+                d={pObj.path}
+                fill="none"
+                stroke={pObj.type === 'stator' ? 'rgba(56, 189, 248, 0.55)' : 'rgba(245, 158, 11, 0.55)'}
+                strokeWidth={pObj.type === 'stator' ? '1.2' : '1.5'}
+                strokeDasharray="6 8"
+                className="animate-flux"
+                style={{
+                  filter: pObj.type === 'stator' 
+                    ? 'drop-shadow(0px 0px 2px rgba(56, 189, 248, 0.45))' 
+                    : 'drop-shadow(0px 0px 2.5px rgba(245, 158, 11, 0.45))'
+                }}
+              />
+            ))}
+          </svg>
+
           {/* LAYER 2: MMF WAVEFORMS (translateZ(25px)) - FLOATS MAJESTICALLY IN space */}
           <svg
             viewBox="0 0 500 500"
@@ -1708,7 +1832,7 @@ export const MotorCrossSection: React.FC<MotorCrossSectionProps> = ({
             className="w-full h-full select-none absolute inset-0 transition-all duration-1000 ease-[cubic-bezier(0.4,0,0.2,1)]"
             style={{
               transform: `translate3d(0, 0, ${is3D ? '55px' : '0px'})`,
-              opacity: showStator && showMmf ? 0.95 : 0,
+              opacity: showStator && (showMmf || showFluxLines) ? 0.95 : 0,
               pointerEvents: 'none',
               transformStyle: 'preserve-3d',
             }}

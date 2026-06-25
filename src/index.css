@@ -1,1 +1,14 @@
 @import "tailwindcss";
+
+@keyframes flux-flow {
+  from {
+    stroke-dashoffset: 24;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.animate-flux {
+  animation: flux-flow 1.2s linear infinite;
+}

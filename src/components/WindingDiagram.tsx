@@ -4,25 +4,31 @@
  */
 
 import React, { useState, useMemo } from 'react';
-import { Activity } from 'lucide-react';
+import { Activity, Maximize2 } from 'lucide-react';
 import { WindingLayout, SimSettings, SlotCurrents } from '../types';
 
 interface WindingDiagramProps {
   layout: WindingLayout;
   settings: SimSettings;
   currents: SlotCurrents;
+  forceDiagramMode?: 'crossSection' | 'lapWinding';
+  onToggleFullscreen?: (mode: 'unrolled' | 'phase_belt') => void;
 }
 
 export const WindingDiagram: React.FC<WindingDiagramProps> = ({
   layout,
   settings,
   currents,
+  forceDiagramMode,
+  onToggleFullscreen,
 }) => {
   const S = layout.slots;
   const pitch = layout.pitch;
 
   const [hoveredSlot, setHoveredSlot] = useState<number | null>(null);
-  const [diagramMode, setDiagramMode] = useState<'crossSection' | 'lapWinding'>('crossSection');
+  const [internalDiagramMode, setInternalDiagramMode] = useState<'crossSection' | 'lapWinding'>('crossSection');
+  const diagramMode = forceDiagramMode || internalDiagramMode;
+  const setDiagramMode = forceDiagramMode ? () => {} : setInternalDiagramMode;
   const [activePhases, setActivePhases] = useState<boolean[]>([true, true, true]);
   const [showFlow, setShowFlow] = useState<boolean>(true);
 
@@ -225,30 +231,32 @@ export const WindingDiagram: React.FC<WindingDiagramProps> = ({
         {/* Action Controls & Legend */}
         <div className="flex flex-wrap items-center gap-3 self-end md:self-center">
           {/* View Mode Toggle */}
-          <div className="flex items-center gap-1 bg-gray-900/80 p-0.5 rounded-xl border border-gray-800">
-            <button
-              id="btn-winding-cross-section"
-              onClick={() => setDiagramMode('crossSection')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 cursor-pointer ${
-                diagramMode === 'crossSection'
-                  ? 'bg-amber-500 text-black font-semibold shadow-md shadow-amber-500/10'
-                  : 'text-gray-400 hover:text-white hover:bg-gray-800'
-              }`}
-            >
-              Cross-Section View
-            </button>
-            <button
-              id="btn-winding-full-lap"
-              onClick={() => setDiagramMode('lapWinding')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 cursor-pointer ${
-                diagramMode === 'lapWinding'
-                  ? 'bg-amber-500 text-black font-semibold shadow-md shadow-amber-500/10'
-                  : 'text-gray-400 hover:text-white hover:bg-gray-800'
-              }`}
-            >
-              Full Lap Winding
-            </button>
-          </div>
+          {!forceDiagramMode && (
+            <div className="flex items-center gap-1 bg-gray-900/80 p-0.5 rounded-xl border border-gray-800">
+              <button
+                id="btn-winding-cross-section"
+                onClick={() => setDiagramMode('crossSection')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 cursor-pointer ${
+                  diagramMode === 'crossSection'
+                    ? 'bg-amber-500 text-black font-semibold shadow-md shadow-amber-500/10'
+                    : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                }`}
+              >
+                Cross-Section View
+              </button>
+              <button
+                id="btn-winding-full-lap"
+                onClick={() => setDiagramMode('lapWinding')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 cursor-pointer ${
+                  diagramMode === 'lapWinding'
+                    ? 'bg-amber-500 text-black font-semibold shadow-md shadow-amber-500/10'
+                    : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                }`}
+              >
+                Full Lap Winding
+              </button>
+            </div>
+          )}
 
           {/* Phase Active Toggles */}
           <div className="flex items-center gap-1 bg-gray-900/80 p-0.5 rounded-xl border border-gray-800">
@@ -371,6 +379,17 @@ export const WindingDiagram: React.FC<WindingDiagramProps> = ({
               Flow: {showFlow ? 'ON' : 'OFF'}
             </button>
           </div>
+
+          {/* Full Screen Button */}
+          {onToggleFullscreen && (
+            <button
+              onClick={() => onToggleFullscreen(diagramMode === 'crossSection' ? 'unrolled' : 'phase_belt')}
+              className="text-[10px] font-bold text-amber-500 cursor-pointer border border-amber-500/20 px-3 py-1.5 rounded-lg bg-gray-950 hover:bg-amber-500/10 transition-all uppercase flex items-center gap-1 select-none"
+              title="Open in Workspace Full Screen"
+            >
+              <Maximize2 className="w-3 h-3" /> Full Screen
+            </button>
+          )}
 
           {/* Legend */}
           <div className="flex gap-4 text-[10px] bg-gray-900/30 px-3 py-1.5 rounded-xl border border-gray-900 bg-gray-900/50">

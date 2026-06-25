@@ -4,6 +4,7 @@
  */
 
 import React, { useState } from 'react';
+import { Maximize2 } from 'lucide-react';
 import { WindingLayout, SimSettings, MmfResult, HarmonicItem } from '../types';
 
 interface PlotsProps {
@@ -11,6 +12,7 @@ interface PlotsProps {
   settings: SimSettings;
   mmf: MmfResult;
   harmonics: HarmonicItem[];
+  onToggleFullscreen?: () => void;
 }
 
 export const Plots: React.FC<PlotsProps> = ({
@@ -18,6 +20,7 @@ export const Plots: React.FC<PlotsProps> = ({
   settings,
   mmf,
   harmonics,
+  onToggleFullscreen,
 }) => {
   const [activeTab, setActiveTab] = useState<'spatial' | 'harmonics' | 'currents'>('spatial');
 
@@ -393,25 +396,36 @@ export const Plots: React.FC<PlotsProps> = ({
   return (
     <div className="flex flex-col bg-gray-950 p-5 rounded-2xl border border-gray-800 shadow-2xl h-full justify-between">
       {/* Tab Selectors bar */}
-      <div className="flex bg-gray-900/80 p-1 rounded-xl border border-gray-800 gap-1.5 mb-5 select-none relative z-10">
-        <button
-          onClick={() => setActiveTab('spatial')}
-          className={`flex-1 py-2 text-center rounded-lg transition-all text-xs font-mono font-bold tracking-tight cursor-pointer ${activeTab === 'spatial' ? 'bg-amber-500/10 text-amber-500 border border-amber-500/30' : 'text-gray-400 hover:text-gray-200 border border-transparent'}`}
-        >
-          Spatial F(θ) Wave
-        </button>
-        <button
-          onClick={() => setActiveTab('harmonics')}
-          className={`flex-1 py-2 text-center rounded-lg transition-all text-xs font-mono font-bold tracking-tight cursor-pointer ${activeTab === 'harmonics' ? 'bg-amber-500/10 text-amber-500 border border-amber-500/30' : 'text-gray-400 hover:text-gray-200 border border-transparent'}`}
-        >
-          Harmonics FFT
-        </button>
-        <button
-          onClick={() => setActiveTab('currents')}
-          className={`flex-1 py-2 text-center rounded-lg transition-all text-xs font-mono font-bold tracking-tight cursor-pointer ${activeTab === 'currents' ? 'bg-amber-500/10 text-amber-500 border border-amber-500/30' : 'text-gray-400 hover:text-gray-200 border border-transparent'}`}
-        >
-          Phase Currents i(t)
-        </button>
+      <div className="flex bg-gray-900/80 p-1 rounded-xl border border-gray-800 gap-1.5 mb-5 select-none relative z-10 items-center justify-between">
+        <div className="flex gap-1.5 flex-1">
+          <button
+            onClick={() => setActiveTab('spatial')}
+            className={`flex-1 py-2 text-center rounded-lg transition-all text-xs font-mono font-bold tracking-tight cursor-pointer ${activeTab === 'spatial' ? 'bg-amber-500/10 text-amber-500 border border-amber-500/30' : 'text-gray-400 hover:text-gray-200 border border-transparent'}`}
+          >
+            Spatial F(θ) Wave
+          </button>
+          <button
+            onClick={() => setActiveTab('harmonics')}
+            className={`flex-1 py-2 text-center rounded-lg transition-all text-xs font-mono font-bold tracking-tight cursor-pointer ${activeTab === 'harmonics' ? 'bg-amber-500/10 text-amber-500 border border-amber-500/30' : 'text-gray-400 hover:text-gray-200 border border-transparent'}`}
+          >
+            Harmonics FFT
+          </button>
+          <button
+            onClick={() => setActiveTab('currents')}
+            className={`flex-1 py-2 text-center rounded-lg transition-all text-xs font-mono font-bold tracking-tight cursor-pointer ${activeTab === 'currents' ? 'bg-amber-500/10 text-amber-500 border border-amber-500/30' : 'text-gray-400 hover:text-gray-200 border border-transparent'}`}
+          >
+            Phase Currents i(t)
+          </button>
+        </div>
+        {onToggleFullscreen && (
+          <button
+            onClick={onToggleFullscreen}
+            className="text-[8.5px] font-bold text-amber-500 cursor-pointer border border-amber-500/20 px-2 py-1.5 rounded-lg bg-gray-950 hover:bg-amber-500/10 transition-all uppercase flex items-center gap-1 ml-2 select-none"
+            title="Open in Stator MMF Waveform Workspace"
+          >
+            <Maximize2 className="w-2.5 h-2.5" /> Full Screen
+          </button>
+        )}
       </div>
 
       {/* Expanded plot area */}
